@@ -27,11 +27,12 @@ description:
     - "Ansible module to manage (create/update/delete) virtial machines in Yandex compute cloud"
 
 options:
-    token:
-        description:
-            - Oauth token to access cloud.
-        type: str
-        required: true
+    auth:
+        token:
+            description:
+                - Oauth token to access cloud.
+            type: str
+            required: true
     name:
         description:
             - Virtual machine name - must be unique throw all folders of cloud.
@@ -45,21 +46,19 @@ options:
     login:
         description:
             - User to create on virtual machine, required for linux instances.
-            - Required together with I(public_ssh_key).
-            - Required with I(state=present), mutually exclusive with I(metadata).
         type: str
         required: false
     public_ssh_key:
         description:
             - Created user`s openssh public key.
-            - Required together with I(public_ssh_key).
-            - Required with I(state=present), mutually exclusive with I(metadata).
+            - Required together with I(login).
         type: str
         required: false
-    # password:
-    #     description:
-    #         - System administrator password, required for windows instances.
-    #     required: false
+    password:
+        description:
+            - System administrator password, required for windows instances.
+            - Required together with I(login).
+        required: false
     hostname:
         description:
             - Virtual machine hostname, default same as name.
@@ -224,11 +223,12 @@ author:
 EXAMPLES = """
 - name: Create vm
   ycc_vm:
-    token: {{ my_token }}
+    auth:
+      token: {{ my_token }}
     name: my_vm
     login: john_doe
     public_ssh_key: john_doe_public_key
-    hostname: my_vm
+    hostname: myvm
     zone_id: ru-central1-a
     folder_id: b1gotqhf076hh183dn
     platform_id: "Intel Cascade Lake"
@@ -236,12 +236,12 @@ EXAMPLES = """
     cores: 2
     memory: 2
     image_id: fd84uob96bu79jk8fqht
-    disk_type: nvme
+    disk_type: ssd
     disk_size: 50
     secondary_disks_spec:
         - autodelete: true
           description: disk1
-          type: nvme
+          type: ssd
           size: 10
         - autodelete: false
           description: disk2
@@ -259,14 +259,16 @@ EXAMPLES = """
 
 - name: Stop vm
   ycc_vm:
-    token: {{ my_token }}
-    name: my_tyni_vm
+    auth:
+      token: {{ my_token }}
+    name: mytynivm
     operation: stop
 
 - name: Start vm
   ycc_vm:
-    token: {{ my_token }}
-    name: my_tyni_vm
+    auth:
+      token: {{ my_token }}
+    name: mytynivm
     operation: start
 
 """
@@ -366,13 +368,16 @@ def vm_argument_spec():
         labels=dict(type="dict", required=False),
         state=dict(choices=VMS_STATES, required=False),
         operation=dict(choices=VMS_OPERATIONS, required=False),
+        password=dict(type="str", required=False),
+        extra_metadata=dict(type="str", required=False),
     )
 
 
 MUTUALLY_EXCLUSIVE = (
     ("state", "operation"),
-    ("login", "metadata"),
-    ("metadata", "public_ssh_key"),
+#    ("login", "metadata"),
+#    ("metadata", "public_ssh_key"),
+    ("public_ssh_key", "password"),
     ("image_id", "image_family"),
     ("snapshot_id", "image_id"),
     ("snapshot_id", "image_family"),
@@ -380,7 +385,11 @@ MUTUALLY_EXCLUSIVE = (
 
 REQUIRED_ONE_OF = [("fqdn", "name")]
 
-REQUIRED_TOGETHER = ("login", "public_ssh_key")
+REQUIRED_TOGETHER = (("login", "public_ssh_key"),
+                     ("login", "password"),
+)
+
+REQUIRED_TOGETHER = ()
 
 REQUIRED_IF = (
     ("state", "present", ("subnet_id",)),
@@ -661,6 +670,7 @@ class YccVM(YC):
         preemptible = spec.get("preemptible")
         metadata = spec.get("metadata")
         labels = spec.get("labels")
+        password = spec.get("password")
 
         if snapshot_id:
             try:
@@ -690,25 +700,35 @@ class YccVM(YC):
             params["hostname"] = hostname
         if preemptible:
             params["scheduling_policy"] = _get_scheduling_policy(preemptible)
-        if metadata:
-            params["metadata"] = metadata
         if labels:
             params["labels"] = labels
-
-        if login and public_ssh_key:
-            params["metadata"] = {
-                "user-data": (
-                    "#cloud-config\n"
-                    'datasource: { Ec2: { strict_id: false, ssh_pwauth: "no" } }\n'
-                    "users: [{\n"
-                    '   name: "%s",\n'
-                    '   sudo: "ALL=(ALL) NOPASSWD:ALL",\n'
-                    '   shell: "/bin/bash",\n'
-                    '   ssh-authorized-keys: ["%s"]\n'
-                    "}]"
-                )
-                % (login, public_ssh_key)
-            }
+        user_data = None
+        if login:
+            if public_ssh_key:
+                user_data = (
+                        "#cloud-config\n"
+                        'datasource: { Ec2: { strict_id: false, ssh_pwauth: "no" } }\n'
+                        "users: [{\n"
+                        '   name: "%s",\n'
+                        '   sudo: "ALL=(ALL) NOPASSWD:ALL",\n'
+                        '   shell: "/bin/bash",\n'
+                        '   ssh-authorized-keys: ["%s"]\n'
+                        "}]"
+                    ) % (login, public_ssh_key)
+        elif password:
+            user_data = "#ps1\nnet user Administrator " + password
+        if metadata:
+            if user_data:
+                if metadata['user-data']:
+                    user_data = user_data + "\n" + metadata["user-data"]
+                    metadata.pop('user-data', None)
+                params['metadata'] = {
+                    "user-data": user_data
+                }
+                params['metadata'].update(metadata)
+            else:
+                params["metadata"] = metadata
+                
         return params
 
     def manage_states(self):
@@ -813,11 +833,18 @@ class YccVM(YC):
 
     def update_vm(self):
         response = dict()
+        field_mask = []
         name = self.params.get("name")
         folder_id = self.params.get("folder_id")
         labels = self.params.get("labels")
+        if "labels" in self.params:
+            field_mask.append("labels")
+        #protobuf_field_mask = FieldMask(paths=["labels"])
+        metadata = self.params.get("metadata")
+        if "metadata" in self.params:
+            field_mask.append("metadata")
+        protobuf_field_mask = FieldMask(paths=field_mask)
         instance = self._get_instance(name, folder_id)
-        protobuf_field_mask = FieldMask(paths=["labels"])
         if instance:
             operation = self.active_op_limit_timeout(
                 self.params.get("active_operations_limit_timeout"),
@@ -825,6 +852,7 @@ class YccVM(YC):
                 UpdateInstanceRequest(
                     instance_id=instance["id"],
                     labels=labels,
+                    metadata=metadata,
                     update_mask=protobuf_field_mask,
                 ),
             )
