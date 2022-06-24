@@ -48,6 +48,6 @@ Examples are available as [separete repository](https://github.com/emelianov/ans
 | auth/token<br>*str* | Oauth token to access cloud. |
 | zone_id<br>*str*<br>ru-central1-a, ru-central1-b, ru-central1-c | Availability zone id<br>**ru-central1-a** - Default
 
-Maintainer: Alexander Emelianbov (a.m.emelianov@gmail.com)
+Maintainer: Alexander Emelianov (a.m.emelianov@gmail.com)
 
 Author of original library: Rotaru Sergey (rsv@arenadata.io)
