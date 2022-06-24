@@ -2,18 +2,18 @@
 
 ## Overview
 
-ansible-module-yandex-cloud is a set of ansible modules that manage a yandex cloud
+*ansible-module-yandex-cloud* is a set of ansible modules that manage a yandex cloud.
 
-## Try it out
+Examples are available as [separete repository](https://github.com/emelianov/ansible-module-yandex-cloud-cookbook).
+
+### Build & Run
 
 ### Prerequisites
 
 * The <https://github.com/yandex-cloud/python-sdk> module is required.
 
-### Build & Run
-
 1. pip install --user `git+https://github.com/yandex-cloud/python-sdk`
-2. git clone `https://github.com/arenadata/ansible-module-yandex-cloud`
+2. git clone `https://github.com/emelianov/ansible-module-yandex-cloud`
 3. cd ansible-module-yandex-cloud
 
 ## Documentation
@@ -165,63 +165,4 @@ AUTHOR: Rotaru Sergey (rsv@arenadata.io)
           status:
           - preview
           supported_by: community
-
-
-EXAMPLES:
-
-- name: Create vm
-  ycc_vm:
-    token: {{ my_token }}
-    name: my_vm
-    login: john_doe
-    public_ssh_key: john_doe_public_key
-    hostname: my_vm
-    zone_id: ru-central1-a
-    folder_id: b1gotqhf076hh183dn
-    platform_id: "Intel Cascade Lake"
-    core_fraction: 100
-    cores: 2
-    memory: 2
-    image_id: fd84uob96bu79jk8fqht
-    disk_type: nvme
-    disk_size: 50
-    secondary_disks_spec:
-        - autodelete: true
-          description: disk1
-          type: nvme
-          size: 10
-        - autodelete: false
-          description: disk2
-          type: hdd
-          size: 100
-    subnet_id: b0cccg656k0nixi92a
-    assign_public_ip: false
-    preemptible: true
-    metadata:
-        user-data: "cloud init format in str"
-    state: present
-
-- name: Stop vm
-  ycc_vm:
-    token: {{ my_token }}
-    name: my_tyni_vm
-    operation: stop
-
-- name: Start vm
-  ycc_vm:
-    token: {{ my_token }}
-    name: my_tyni_vm
-    operation: start
-
-
-RETURN VALUES:
-
-original_message:
-    description: The original name param that was passed in
-    type: str
-    returned: always
-message:
-    description: The output message that the test module generates
-    type: str
-    returned: always
 ```
