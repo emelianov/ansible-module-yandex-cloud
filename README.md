@@ -2,15 +2,17 @@
 
 ## Overview
 
-*ansible-module-yandex-cloud* is a set of ansible modules that manage a yandex cloud.
+*ansible-module-yandex-cloud* is a set of ansible modules that manage Yandex Cloud resources.
 
 Examples are available as [separete repository](https://github.com/emelianov/ansible-module-yandex-cloud-cookbook).
 
-### Build & Run
+## Build & Run
 
-### Prerequisites
+#### Prerequisites
 
 * The <https://github.com/yandex-cloud/python-sdk> module is required.
+
+#### Installation
 
 1. pip install --user `git+https://github.com/yandex-cloud/python-sdk`
 2. git clone `https://github.com/emelianov/ansible-module-yandex-cloud`
@@ -18,151 +20,34 @@ Examples are available as [separete repository](https://github.com/emelianov/ans
 
 ## Documentation
 
-### VM managment
+### ycc_vm
 
-```raw
-ycc_vm:
-        Ansible module to manage (create/update/delete) virtial machines in Yandex compute cloud
+| Parameters | Comment |
+| ---------- | ------- |
+| assign_public_ip<br>*bool* | Assign public address<br>**False** - Default |
+| core_fraction<br>*int*<br>5,20,50,100 | Guaranteed vCPU share<br>**100** - Default |
+| cores<br>*int* | vCPU number<br>**2** - Default |
+| disk_size<br>*int* | Primary disk size in GB<br>**10** - Default |
+| disk_type<br>*str*<br>hdd,sdd | Primary disk type<br>**hdd** - Default |
+| folder_id<br>*str* | Virtual machine target folder id |
+| hostname<br>*str* | Virtual machine hostname, default same as name<br>**null** - Default |
+| image_id<br>*str* | Boot image id<br>Required with `state`=present<br>**null** - Default |
+| login<br>*str* | User to create on virtual machine, required for linux instances<br>Required together with `public_ssh_key`<br>Required with `state`=present<br>**null** - Default |
+| max_retries<br>*int* | Max retries to proceed operation/state<br>**5** - Default |
+| memory<br>*int* | RAM size, GB<br>**2** - Default |
+| metadata<br>*dict* | Metadata to be translate to vm<br>**null** - Default |
+| name<br>*str* | Virtual machine name - must be unique throw all folders of cloud.
+| operation<br>start,stop,get_info,update | Virtual machine control<br>Mutually exclusive with `state`<br>**null** - Default |
+| platform_id<br>*str*<br>Intel Cascade Lake, Intel Broadwell | Platform id<br>Intel Broadwell - Default]
+| preemptible<br>*bool* | Create preemtible(may be stopped after working 24h a row) vm<br>**false** - Default |
+| public_ssh_key<br>*str* | Created user's openssh public key<br>Required together with `login`<br>Required with `state`=present, mutually exclusive with `metadata`<br>**null** - Default |
+| retry_multiplayer<br>*int* | Retry multiplayer between retries to proceed operation/state (wait retry_multiplayer*curent_retry seconds)<br>**2** - Default |
+| secondary_disks_spec<br>*list* | Additional disk configuration spec<br>**null** - default |
+| state<br>*str*<br>present,absent | VM state<br>Mutually exclusive with `operation`<br>**null** - Default
+| subnet_id<br>*str* | Network id<br>Required with `state`=present<br>**null** - Default |
+| auth/token<br>*str* | Oauth token to access cloud. |
+| zone_id<br>*str*<br>ru-central1-a, ru-central1-b, ru-central1-c | Availability zone id<br>**ru-central1-a** - Default
 
-  * This module is maintained by The Ansible Community
-OPTIONS (= is mandatory):
+Maintainer: Alexander Emelianbov (a.m.emelianov@gmail.com)
 
-- assign_public_ip
-        Assign public address.
-        [Default: False]
-        type: bool
-
-- core_fraction
-        Guaranteed vCPU share
-        [Default: 100]
-        choises:
-        - 5
-        - 20
-        - 50
-        - 100
-
-        type: int
-
-- cores
-        vCPU number.
-        [Default: 2]
-        type: int
-
-- disk_size
-        Primary disk size in GB.
-        [Default: 10]
-        type: int
-
-- disk_type
-        Primary disk type.
-        [Default: hdd]
-        choises: hdd, nvme
-        type: str
-
-= folder_id
-        Virtual machine target folder id.
-
-        type: str
-
-- hostname
-        Virtual machine hostname, default same as name.
-        [Default: (null)]
-        type: str
-
-- image_id
-        Boot image id.
-        Required with `state=present'.
-        [Default: (null)]
-        type: str
-
-- login
-        User to create on virtual machine, required for linux instances.
-        Required together with `public_ssh_key'.
-        Required with `state=present', mutually exclusive with `metadata'.
-        [Default: (null)]
-        type: str
-
-- max_retries
-        Max retries to proceed operation/state.
-        [Default: 5]
-        type: int
-
-- memory
-        RAM size, GB.
-        [Default: 2]
-        type: int
-
-- metadata
-        Metadata to be translate to vm.
-        [Default: (null)]
-        type: dict
-
-= name
-        Virtual machine name - must be unique throw all folders of cloud.
-
-        type: str
-
-- operation
-        stop, start or get_info.
-        Mutually exclusive with `state'.
-        [Default: (null)]
-        choises: start, stop, get_info, update
-
-- platform_id
-        Platform id.
-        [Default: Intel Broadwell.]
-        choises: Intel Cascade Lake, Intel Broadwell
-        type: str
-
-- preemptible
-        Create preemtible(may be stopped after working 24h a row) vm.
-        [Default: False]
-        type: bool
-
-- public_ssh_key
-        Created user`s openssh public key.
-        Required together with `public_ssh_key'.
-        Required with `state=present', mutually exclusive with `metadata'.
-        [Default: (null)]
-        type: str
-
-- retry_multiplayer
-        Retry multiplayer between retries to proceed operation/state
-        (wait retry_multiplayer*curent_retry seconds)
-        [Default: 2]
-        type: int
-
-- secondary_disks_spec
-        Additional disk configuration spec.
-        [Default: (null)]
-        type: list
-
-- state
-        VM state.
-        Mutually exclusive with `operation'.
-        (Choices: present, absent)[Default: (null)]
-        type: str
-
-- subnet_id
-        Network id.
-        Required with `state=present'
-        [Default: (null)]
-
-= token
-        Oauth token to access cloud.
-
-        type: str
-
-- zone_id
-        Availability zone id.
-        [Default: ru-central1-a]
-        choises: ru-central1-a, ru-central1-b, ru-central1-c
-        type: str
-
-
-AUTHOR: Rotaru Sergey (rsv@arenadata.io)
-        METADATA:
-          status:
-          - preview
-          supported_by: community
-```
+Author of original library: Rotaru Sergey (rsv@arenadata.io)
